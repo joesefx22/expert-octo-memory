@@ -1,0 +1,51 @@
+/* تخصيص مشغل Video.js ليشبه يوتيوب */
+.video-js {
+  font-family: 'Cairo', sans-serif;
+}
+
+.vjs-theme-fantasy .vjs-control-bar {
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8)) !important;
+  border-radius: 0 0 12px 12px;
+  padding: 0 10px 10px;
+}
+
+.vjs-theme-fantasy .vjs-play-progress {
+  background-color: #2563eb !important; /* primary */
+}
+
+.vjs-theme-fantasy .vjs-slider {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.vjs-theme-fantasy .vjs-load-progress {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.vjs-theme-fantasy .vjs-big-play-button {
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  width: 70px;
+  height: 70px;
+  line-height: 66px;
+  font-size: 30px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.vjs-theme-fantasy:hover .vjs-big-play-button {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.video-wrapper {
+  background: #000;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* منع التحديد والتحميل */
+.video-js video {
+  pointer-events: none; /* يمنع السحب والإفلات */
+}
