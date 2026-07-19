@@ -3,12 +3,14 @@
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { useState } from 'react'
+import { LockIcon } from 'lucide-react' // افتراض استخدام lucide-react
 
 interface Lesson {
   id: string
   title: string
   type: string
   order: number
+  lockConfig?: any
 }
 
 interface Module {
@@ -54,6 +56,9 @@ export default function ModuleAccordion({
                 {completedLessonIds.has(lesson.id) ? '✓' : lesson.order}
               </span>
               <span className="text-gray-700">{lesson.title}</span>
+              {lesson.lockConfig && (
+                <LockIcon className="w-4 h-4 text-gray-400 mr-2" />
+              )}
               <span className="mr-auto text-gray-400 text-sm">
                 {lesson.type === 'VIDEO' ? '🎥' : lesson.type === 'QUIZ' ? '❓' : '📄'}
               </span>
@@ -64,10 +69,3 @@ export default function ModuleAccordion({
     </div>
   )
 }
-// في عرض كل درس:
-import { LockIcon } from '@/components/ui/LockIcon'
-
-// أضف هذه الأيقونة إذا كان الدرس مقفلاً:
-{lesson.lockConfig && (
-  <LockIcon className="w-4 h-4 text-gray-400 mr-2" />
-)}

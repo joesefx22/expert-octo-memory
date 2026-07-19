@@ -40,30 +40,3 @@ export default async function CoursesPage({
     </div>
   )
 }
-
-سنضيف استعلامات لتجميع البيانات، ثم نمررها إلى الكارت. بدلاً من تعديل المكون الخادم ليصبح عميل، سنقوم بجلب هذه الأرقام في الصفحة الأم (الرئيسية أو صفحة الكورسات) وإرسالها.
-
-تحديث src/app/page.tsx و src/app/courses/page.tsx:
-في الصفحتين، عدّل استعلام prisma.course.findMany ليتضمن:
-
-ts
-include: {
-  teacher: { select: { name: true } },
-  _count: { select: { modules: true } },
-  codes: {
-    where: { isUsed: true },
-    select: { userId: true, purchasedAt: true }
-  }
-}
-ثم قم بمعالجة البيانات لاستخراج عدد الطلاب (عدد userId الفريد) ونسبة الإكمال (يمكن حسابها من جدول Progress لكنها عملية مكلفة لكل كورس، لذلك MVP سنعتمد على عدد المشتريات فقط، أو نعرض عبارة "طلاب مسجلين"). سنعرض عدد الطلاب الذين اشتروا الكورس فقط، ونسبة الإكمال سنتركها للمرحلة الثانية (أو نعرض "—"). إذا أردت نسبة الإكمال فعلاً، نحتاج إلى استعلام مجمع، لكني سأضيفه للتوضيح.
-
-سأقوم بإنشاء مكون CourseCard يقبل خصائص إضافية: studentCount و averageProgress (اختياري). وفي الصفحة نمررها.
-
-const coursesWithCount = await Promise.all(
-  courses.map(async (course) => {
-    const studentCount = await prisma.code.count({
-      where: { courseId: course.id, isUsed: true, userId: { not: null } }
-    })
-    return { ...course, studentCount }
-  })
-)
