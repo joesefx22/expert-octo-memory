@@ -49,6 +49,9 @@ model User {
   referralsMade   Referral[]        @relation("Referrer")
   refereeOf       Referral?         @relation("Referee")
   questionBank    QuestionBank[]
+  lectures        Lecture[]
+  submissions     Submission[]
+  questions       Question[]
 }
 
 model Course {
@@ -89,11 +92,11 @@ model Module {
 model Lesson {
   id         String     @id @default(cuid())
   title      String
-  videoId    String?    // Bunny Stream GUID
-  duration   Int?       // seconds
+  videoId    String?
+  duration   Int?
   order      Int
   type       LessonType @default(VIDEO)
-  lockConfig Json?      // إعدادات القفل
+  lockConfig Json?
   moduleId   String
   module     Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
@@ -103,6 +106,62 @@ model Lesson {
   watchProgresses WatchProgress[]
   videoBookmarks VideoBookmark[]
   attachments    Attachment[]
+}
+
+model Lecture {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  videoId     String
+  duration    Int
+  price       Float?
+  isFree      Boolean  @default(false)
+  teacherId   String
+  teacher     User     @relation(fields: [teacherId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments Assignment[]
+  codes       Code[]
+  questions   Question[]
+}
+
+model Assignment {
+  id        String   @id @default(cuid())
+  lectureId String
+  lecture   Lecture  @relation(fields: [lectureId], references: [id])
+  title     String
+  questions Json
+  dueDate   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submissions Submission[]
+}
+
+model Submission {
+  id           String   @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User     @relation(fields: [studentId], references: [id])
+  answers      Json
+  score        Float?
+  feedback     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Question {
+  id        String   @id @default(cuid())
+  content   String
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id])
+  lectureId String?
+  lecture   Lecture? @relation(fields: [lectureId], references: [id])
+  reply     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Quiz {
@@ -116,8 +175,8 @@ model QuizQuestion {
   id       String       @id @default(cuid())
   text     String
   type     QuestionType
-  options  String[]     // for MCQ
-  answer   String       // correct answer (index, "true"/"false", number string)
+  options  String[]
+  answer   String
   quizId   String
   quiz     Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
   answers  QuizAnswer[]
@@ -137,8 +196,10 @@ model QuizAnswer {
 model Code {
   id          String    @id @default(cuid())
   code        String    @unique
-  courseId    String
-  course      Course    @relation(fields: [courseId], references: [id])
+  courseId    String?
+  course      Course?   @relation(fields: [courseId], references: [id])
+  lectureId   String?
+  lecture     Lecture?  @relation(fields: [lectureId], references: [id])
   isUsed      Boolean   @default(false)
   userId      String?
   usedBy      User?     @relation("UserCodes", fields: [userId], references: [id])
@@ -149,7 +210,7 @@ model Code {
 model Coupon {
   id            String   @id @default(cuid())
   code          String   @unique
-  discountType  String   // PERCENTAGE, FIXED
+  discountType  String
   discountValue Float
   maxUses       Int      @default(1)
   currentUses   Int      @default(0)
@@ -169,7 +230,7 @@ model Enrollment {
   courseId  String
   course    Course    @relation(fields: [courseId], references: [id])
   createdAt DateTime  @default(now())
-  expiresAt DateTime? // صلاحية الوصول
+  expiresAt DateTime?
 
   @@unique([userId, courseId])
   @@index([userId])
@@ -238,7 +299,7 @@ model Payment {
   courseId      String
   course        Course   @relation(fields: [courseId], references: [id])
   amount        Float
-  status        String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  status        String   @default("PENDING")
   paymobOrderId String?  @unique
   createdAt     DateTime @default(now())
 }
@@ -247,7 +308,7 @@ model Attachment {
   id         String   @id @default(cuid())
   name       String
   url        String
-  type       String   // PDF, IMAGE, DOC
+  type       String
   size       Int
   lessonId   String?
   lesson     Lesson?  @relation(fields: [lessonId], references: [id])
@@ -299,10 +360,10 @@ model Contest {
   course    Course   @relation(fields: [courseId], references: [id])
   startDate DateTime
   endDate   DateTime
-  type      String   @default("DAILY") // DAILY, WEEKLY, SPECIAL
-  questions String[] // QuestionBank IDs
+  type      String   @default("DAILY")
+  questions String[]
   rewards   Json?
-  status    String   @default("ACTIVE") // ACTIVE, ENDED
+  status    String   @default("ACTIVE")
   createdAt DateTime @default(now())
 
   entries   ContestEntry[]
@@ -352,7 +413,7 @@ model AuditLog {
 model CourseStats {
   courseId    String   @id
   enrollments Int      @default(0)
-  watchTime   Int      @default(0) // seconds
+  watchTime   Int      @default(0)
   completions Int      @default(0)
   updatedAt   DateTime @updatedAt
 }

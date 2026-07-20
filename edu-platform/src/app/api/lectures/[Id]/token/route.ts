@@ -28,8 +28,8 @@ export async function GET(req: Request, { params }: { params: { lessonId: string
 
   const course = lesson.module.course
   const access = await checkAccess(course, session.user.id, session.user.role)
-  if (!access.allowed) return NextResponse.json({ message: access.reason }, { status: 403 })
-
+if (!access.allowed) return NextResponse.json({ message: 'غير مصرح' }, { status: 403 })
+      
   const forwarded = req.headers.get('x-forwarded-for')
   const clientIp = forwarded ? forwarded.split(',')[0].trim() : undefined
 

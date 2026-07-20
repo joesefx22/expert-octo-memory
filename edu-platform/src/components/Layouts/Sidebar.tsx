@@ -11,13 +11,16 @@ const studentLinks = [
 ]
 
 const teacherLinks = [
-  { href: '/teacher', label: 'لوحة التحكم', icon: '📊' },
-  { href: '/teacher/profile', label: 'ملفي الشخصي', icon: '👤' },
+  { href: '/teacher', label: 'كورساتي', icon: '📚' },
+  { href: '/teacher/create-course', label: 'إضافة كورس', icon: '➕' },
+  { href: '/teacher/analytics', label: 'التحليلات', icon: '📈' },
 ]
 
 const adminLinks = [
   { href: '/admin', label: 'لوحة التحكم', icon: '📊' },
-  { href: '/admin/users', label: 'إدارة المستخدمين', icon: '👥' },
+  { href: '/admin/users', label: 'المستخدمين', icon: '👥' },
+  { href: '/admin/courses', label: 'الكورسات', icon: '📚' },
+  { href: '/admin/codes', label: 'الأكواد', icon: '🎟️' },
 ]
 
 export default function Sidebar({ role }: { role: 'STUDENT' | 'TEACHER' | 'ADMIN' }) {
@@ -48,14 +51,3 @@ export default function Sidebar({ role }: { role: 'STUDENT' | 'TEACHER' | 'ADMIN
     </aside>
   )
 }
-const teacherLinks = [
-  { href: '/teacher', label: 'كورساتي', icon: '📚' },
-  { href: '/teacher/create-course', label: 'إضافة كورس', icon: '➕' },
-]
-
-const adminLinks = [
-  { href: '/admin', label: 'لوحة التحكم', icon: '📊' },
-  { href: '/admin/users', label: 'المستخدمين', icon: '👥' },
-  { href: '/admin/courses', label: 'الكورسات', icon: '📚' },
-  { href: '/admin/codes', label: 'الأكواد', icon: '🎟️' },
-]

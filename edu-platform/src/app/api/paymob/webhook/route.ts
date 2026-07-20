@@ -12,8 +12,6 @@ export async function POST(req: Request) {
   }
 
   const calculatedHmac = crypto.createHmac('sha256', secret).update(body).digest('hex')
-
-  // استخدام timing safe comparison
   const calculatedBuffer = Buffer.from(calculatedHmac)
   const receivedBuffer = Buffer.from(receivedHmac)
   if (receivedBuffer.length !== calculatedBuffer.length || !crypto.timingSafeEqual(calculatedBuffer, receivedBuffer)) {
@@ -42,7 +40,6 @@ export async function POST(req: Request) {
         data: { status: 'COMPLETED' },
       })
 
-      // إنشاء Enrollment للطالب
       await prisma.enrollment.upsert({
         where: { userId_courseId: { userId: payment.userId, courseId: payment.courseId } },
         update: { expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
@@ -53,7 +50,7 @@ export async function POST(req: Request) {
         },
       })
 
-      // إرسال إشعار داخلي للطالب
+      // إشعار داخلي
       await prisma.notification.create({
         data: {
           userId: payment.userId,

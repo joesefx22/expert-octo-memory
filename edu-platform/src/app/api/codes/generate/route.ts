@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { generateRandomCode } from '@/lib/utils'
+import { renderToBuffer } from '@react-pdf/renderer'
+import CodePDF from '@/components/CodePDF'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
@@ -15,7 +17,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'معطيات خاطئة' }, { status: 400 })
   }
 
-  // التحقق من ملكية الكورس (للمدرس)
   const course = await prisma.course.findUnique({ where: { id: courseId } })
   if (!course) return NextResponse.json({ message: 'الكورس غير موجود' }, { status: 404 })
   if (session.user.role !== 'ADMIN' && course.teacherId !== session.user.id) {
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
   const codes: string[] = []
   for (let i = 0; i < count; i++) {
     let code = generateRandomCode(8)
+    // ضمان عدم تكرار الكود
     while (await prisma.code.findUnique({ where: { code } })) {
       code = generateRandomCode(8)
     }
@@ -32,11 +34,15 @@ export async function POST(req: Request) {
     codes.push(code)
   }
 
-  // توليد PDF (اختياري)
-  const pdfBuffer = await generateCodesPDF(course.title, codes) // سننشئ هذه الدالة لاحقًا
+  // توليد PDF مباشرة (اختياري) - نعيد رابط الـ PDF فقط
+  const pdfBuffer = await renderToBuffer(
+    CodePDF({ codes, courseTitle: course.title })
+  )
 
-  return NextResponse.json({ codes, pdfUrl: `/api/codes/pdf?courseId=${courseId}` }, { status: 201 })
+  return new NextResponse(new Uint8Array(pdfBuffer), {
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="codes-${course.title}.pdf"`,
+    },
+  })
 }
-
-// سنحتاج إلى دالة generateCodesPDF، لكن يمكنك استخدام مكون CodePDF القديم مع تعديل بسيط
-// سأضيف مسار pdf لاحقًا

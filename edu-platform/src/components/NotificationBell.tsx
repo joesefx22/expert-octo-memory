@@ -1,48 +1,51 @@
 'use client'
-
 import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
-
-interface Notification {
-  id: string
-  message: string
-  read: boolean
-  createdAt: string
-}
+import { Bell } from 'lucide-react'
 
 export default function NotificationBell() {
-  const { data: session } = useSession()
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [notifications, setNotifications] = useState<any[]>([])
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    if (!session) return
     fetch('/api/notifications')
       .then(res => res.json())
-      .then(setNotifications)
-  }, [session])
+      .then(data => setNotifications(Array.isArray(data) ? data : []))
+  }, [])
 
   const unreadCount = notifications.filter(n => !n.read).length
 
+  const markAllRead = () => {
+    fetch('/api/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }).then(() => {
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    })
+  }
+
   return (
     <div className="relative">
-      <button onClick={() => setOpen(!open)} className="relative p-2">
-        🔔
+      <button onClick={() => setOpen(!open)} className="relative p-2 rounded-full hover:bg-gray-100">
+        <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
             {unreadCount}
           </span>
         )}
       </button>
       {open && (
-        <div className="absolute left-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border z-50 max-h-80 overflow-y-auto p-2">
+        <div className="absolute left-0 mt-2 w-80 bg-white rounded-2xl shadow-xl p-4 z-50 max-h-96 overflow-auto">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-bold">الإشعارات</h3>
+            <button onClick={markAllRead} className="text-xs text-blue-600">تعليم الكل مقروء</button>
+          </div>
           {notifications.length === 0 ? (
-            <p className="text-center text-gray-500 p-4">لا توجد إشعارات</p>
+            <p className="text-gray-500 text-sm">لا توجد إشعارات</p>
           ) : (
             notifications.map(n => (
-              <div key={n.id} className={`p-3 rounded-lg mb-2 ${n.read ? 'bg-gray-50' : 'bg-blue-50'}`}>
-                <p className="text-sm">{n.message}</p>
-                <span className="text-xs text-gray-400">{new Date(n.createdAt).toLocaleString('ar-EG')}</span>
+              <div key={n.id} className={`p-2 rounded mb-2 text-sm ${n.read ? 'bg-gray-50' : 'bg-blue-50 font-medium'}`}>
+                {n.message}
               </div>
             ))
           )}
@@ -51,14 +54,3 @@ export default function NotificationBell() {
     </div>
   )
 }
-// داخل NotificationBell
-useEffect(() => {
-  if (open) {
-    // بعد 3 ثواني من الفتح، نعلم الكل كمقروء
-    const timer = setTimeout(() => {
-      fetch('/api/notifications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-        .then(() => setNotifications(prev => prev.map(n => ({ ...n, read: true }))))
-    }, 3000)
-    return () => clearTimeout(timer)
-  }
-}, [open])

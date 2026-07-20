@@ -19,4 +19,4 @@ export type AssignmentData = {
   dueDate?: string
 }
 
-export type SubmissionAnswers = Record<number, number> // questionIndex -> selectedOption
+export type SubmissionAnswers = Record<number, number>

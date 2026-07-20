@@ -29,7 +29,7 @@ export async function GET(req: Request) {
   const codeList = codes.map(c => c.code)
   const buffer = await renderToBuffer(<CodePDF codes={codeList} courseTitle={course.title} />)
 
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="codes-${course.title}.pdf"`,

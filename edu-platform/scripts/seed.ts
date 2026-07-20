@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  // تنظيف البيانات بترتيب صحيح
+  // ========== تنظيف جميع البيانات بترتيب يحترم العلاقات ==========
   await prisma.contestEntry.deleteMany()
   await prisma.contest.deleteMany()
   await prisma.videoBookmark.deleteMany()
@@ -21,7 +21,15 @@ async function main() {
   await prisma.payment.deleteMany()
   await prisma.notification.deleteMany()
   await prisma.auditLog.deleteMany()
+
+  // النماذج القديمة (التي يعتمد عليها الكود الحالي)
+  await prisma.submission.deleteMany()
+  await prisma.question.deleteMany()
+  await prisma.assignment.deleteMany()
   await prisma.code.deleteMany()
+  await prisma.lecture.deleteMany()
+
+  // النماذج الجديدة
   await prisma.enrollment.deleteMany()
   await prisma.lesson.deleteMany()
   await prisma.module.deleteMany()
@@ -30,7 +38,7 @@ async function main() {
   await prisma.course.deleteMany()
   await prisma.user.deleteMany()
 
-  // إنشاء مستخدمين
+  // ========== إنشاء مستخدمين ==========
   const adminPass = await bcrypt.hash('admin123', 12)
   const teacherPass = await bcrypt.hash('teacher123', 12)
   const studentPass = await bcrypt.hash('student123', 12)
@@ -47,7 +55,56 @@ async function main() {
     data: { name: 'طالب محمد', email: 'student@edu.com', password: studentPass, role: 'STUDENT' },
   })
 
-  // إنشاء كورس
+  // ========== إنشاء بيانات قديمة (Lecture, Assignment, Submission, Question) ==========
+  const lecture = await prisma.lecture.create({
+    data: {
+      title: 'مقدمة في البرمجة',
+      description: 'تعلم أساسيات البرمجة بلغة TypeScript',
+      videoId: '7f9e3b2c-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+      duration: 3600,
+      isFree: true,
+      teacherId: teacher.id,
+    },
+  })
+
+  const assignment = await prisma.assignment.create({
+    data: {
+      lectureId: lecture.id,
+      title: 'تطبيق عملي',
+      questions: [
+        { question: 'ما هو TypeScript؟', options: ['لغة', 'مكتبة', 'إطار عمل'], correctIndex: 0 },
+      ],
+    },
+  })
+
+  // إنشاء كود للمحاضرة القديمة (يدعم lectureId)
+  await prisma.code.create({
+    data: {
+      code: 'OLD12345',
+      lectureId: lecture.id,
+      isUsed: false,
+    },
+  })
+
+  // واجب قديم
+  await prisma.submission.create({
+    data: {
+      assignmentId: assignment.id,
+      studentId: student.id,
+      answers: { 0: 0 },
+    },
+  })
+
+  // سؤال طالب
+  await prisma.question.create({
+    data: {
+      content: 'كيف يمكن تحسين الأداء؟',
+      studentId: student.id,
+      lectureId: lecture.id,
+    },
+  })
+
+  // ========== إنشاء بيانات جديدة (Course, Module, Lesson, Quiz, Enrollment, Progress) ==========
   const course = await prisma.course.create({
     data: {
       title: 'React.js من الصفر',
@@ -58,16 +115,14 @@ async function main() {
     },
   })
 
-  // وحدة أولى
   const module1 = await prisma.module.create({
     data: { title: 'أساسيات React', order: 1, courseId: course.id },
   })
 
-  // درس فيديو
   const lesson1 = await prisma.lesson.create({
     data: {
       title: 'مقدمة في React',
-      videoId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', // استبدلها بـ GUID حقيقي
+      videoId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
       duration: 600,
       order: 1,
       type: 'VIDEO',
@@ -75,7 +130,6 @@ async function main() {
     },
   })
 
-  // درس اختبار
   const lesson2 = await prisma.lesson.create({
     data: {
       title: 'اختبار صغير',
@@ -94,12 +148,12 @@ async function main() {
       text: 'ما هو React؟',
       type: 'MCQ',
       options: ['مكتبة', 'إطار عمل', 'لغة برمجة'],
-      answer: '0', // index
+      answer: '0',
       quizId: quiz.id,
     },
   })
 
-  // إنشاء كود شراء
+  // كود شراء للكورس الجديد
   await prisma.code.create({
     data: {
       code: 'REACT123',
@@ -107,16 +161,14 @@ async function main() {
     },
   })
 
-  // تسجيل الطالب في الكورس (Enrollment)
   await prisma.enrollment.create({
     data: {
       userId: student.id,
       courseId: course.id,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 أيام
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
   })
 
-  // إضافة تقدم للطالب في الدرس الأول
   await prisma.progress.create({
     data: {
       userId: student.id,
@@ -126,7 +178,6 @@ async function main() {
     },
   })
 
-  // إضافة إشعار
   await prisma.notification.create({
     data: {
       userId: student.id,
@@ -134,7 +185,7 @@ async function main() {
     },
   })
 
-  console.log('✅ تم إنشاء بيانات البذرة بنجاح')
+  console.log('✅ تم إنشاء بيانات البذرة بنجاح (القديمة والجديدة)')
 }
 
 main()
