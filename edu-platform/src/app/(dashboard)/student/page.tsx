@@ -7,36 +7,42 @@ export default async function StudentDashboard() {
   const session = await getServerSession(authOptions)
   const userId = session?.user.id!
 
-  // جلب التسجيلات (Enrollments) للطالب
+  // جلب التسجيلات (Enrollments) للطالب مع عدد الدروس فقط
   const enrollments = await prisma.enrollment.findMany({
     where: { userId },
     include: {
       course: {
         include: {
-          modules: { include: { lessons: true } },
+          modules: { select: { _count: { select: { lessons: true } } } },
           teacher: { select: { name: true } },
         },
       },
     },
   })
 
-  // جلب الكورسات المجانية
+  // جلب الكورسات المجانية مع عدد الدروس فقط
   const freeCourses = await prisma.course.findMany({
     where: { isFree: true },
     include: {
-      modules: { include: { lessons: true } },
+      modules: { select: { _count: { select: { lessons: true } } } },
       teacher: { select: { name: true } },
     },
   })
 
-  // دمج الكورسات المشتراة والمجانية مع إزالة التكرار
+  // دمج الكورسات وإزالة التكرار
   const enrolledCourseIds = new Set(enrollments.map(e => e.courseId))
   const courses = [
     ...enrollments.map(e => e.course),
     ...freeCourses.filter(c => !enrolledCourseIds.has(c.id))
   ]
 
-  // جلب نتائج الواجبات (إن وجدت) - يمكن تعديلها لاحقاً
+  // حساب إجمالي الدروس لكل كورس (للاستخدام في واجهة التقدم)
+  const coursesWithTotalLessons = courses.map(course => {
+    const totalLessons = course.modules.reduce((acc, mod) => acc + mod._count.lessons, 0)
+    return { ...course, totalLessons }
+  })
+
+  // جلب نتائج الاختبارات الأخيرة (بدون تغيير)
   const submissions = await prisma.quizAnswer.findMany({
     where: { userId },
     include: { question: { include: { quiz: { include: { lesson: true } } } } },
@@ -48,7 +54,7 @@ export default async function StudentDashboard() {
     <div className="space-y-6" dir="rtl">
       <h1 className="text-3xl font-bold">كورساتي</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {courses.map(course => (
+        {coursesWithTotalLessons.map(course => (
           <CourseProgressCard key={course.id} course={course} userId={userId} />
         ))}
         {courses.length === 0 && <p className="text-gray-500">لا توجد كورسات حالياً.</p>}

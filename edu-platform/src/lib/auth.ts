@@ -2,19 +2,22 @@ import NextAuth, { type AuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
+import { Role } from '@prisma/client'
+import { checkRateLimit } from './rateLimit'
+import { headers } from 'next/headers'
 
 declare module 'next-auth' {
   interface Session {
     user: {
       id: string
-      role: string
+      role: Role
       name?: string | null
       email?: string | null
       image?: string | null
     }
   }
   interface User {
-    role: string
+    role: Role
   }
 }
 
@@ -29,12 +32,35 @@ export const authOptions: AuthOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) throw new Error('Invalid credentials')
-        const user = await prisma.user.findUnique({ where: { email: credentials.email } })
-        if (!user || !user.password) throw new Error('Invalid credentials')
+        // ✅ حماية من القوة الغاشمة: فحص المعدل الأقصى للمحاولات
+        const requestHeaders = new Headers()
+        const clientIp = headers().get('x-forwarded-for') || '127.0.0.1'
+        requestHeaders.set('x-forwarded-for', clientIp)
+        const mockReq = new Request('http://localhost', { headers: requestHeaders })
+
+        const rateLimitRes = await checkRateLimit(mockReq, 10) // أقصى 10 محاولات
+        if (rateLimitRes) {
+          throw new Error('تم تجاوز الحد المسموح. حاول لاحقاً.')
+        }
+
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error('بيانات غير صالحة')
+        }
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        })
+        if (!user || !user.password) throw new Error('بيانات غير صالحة')
+
         const isValid = await bcrypt.compare(credentials.password, user.password)
-        if (!isValid) throw new Error('Invalid credentials')
-        return { id: user.id, email: user.email, name: user.name, role: user.role }
+        if (!isValid) throw new Error('بيانات غير صالحة')
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        }
       },
     }),
   ],
@@ -48,7 +74,7 @@ export const authOptions: AuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.role = token.role as string
+        session.user.role = token.role as Role
         session.user.id = token.id as string
       }
       return session

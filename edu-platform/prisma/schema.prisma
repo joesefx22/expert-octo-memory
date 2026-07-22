@@ -49,8 +49,6 @@ model User {
   referralsMade   Referral[]        @relation("Referrer")
   refereeOf       Referral?         @relation("Referee")
   questionBank    QuestionBank[]
-  lectures        Lecture[]
-  submissions     Submission[]
   questions       Question[]
 }
 
@@ -76,6 +74,8 @@ model Course {
   questionBank QuestionBank[]
   attachments  Attachment[]
   progresses   Progress[]
+
+  @@index([teacherId])
 }
 
 model Module {
@@ -87,6 +87,8 @@ model Module {
 
   lessons     Lesson[]
   attachments Attachment[]
+
+  @@index([courseId])
 }
 
 model Lesson {
@@ -106,62 +108,24 @@ model Lesson {
   watchProgresses WatchProgress[]
   videoBookmarks VideoBookmark[]
   attachments    Attachment[]
-}
+  questions      Question[]
 
-model Lecture {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  videoId     String
-  duration    Int
-  price       Float?
-  isFree      Boolean  @default(false)
-  teacherId   String
-  teacher     User     @relation(fields: [teacherId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  assignments Assignment[]
-  codes       Code[]
-  questions   Question[]
-}
-
-model Assignment {
-  id        String   @id @default(cuid())
-  lectureId String
-  lecture   Lecture  @relation(fields: [lectureId], references: [id])
-  title     String
-  questions Json
-  dueDate   DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  submissions Submission[]
-}
-
-model Submission {
-  id           String   @id @default(cuid())
-  assignmentId String
-  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  studentId    String
-  student      User     @relation(fields: [studentId], references: [id])
-  answers      Json
-  score        Float?
-  feedback     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  @@index([moduleId])
 }
 
 model Question {
   id        String   @id @default(cuid())
   content   String
   studentId String
-  student   User     @relation(fields: [studentId], references: [id])
-  lectureId String?
-  lecture   Lecture? @relation(fields: [lectureId], references: [id])
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lessonId  String?
+  lesson    Lesson?  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   reply     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([lessonId])
 }
 
 model Quiz {
@@ -180,31 +144,38 @@ model QuizQuestion {
   quizId   String
   quiz     Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
   answers  QuizAnswer[]
+
+  @@index([quizId])
 }
 
 model QuizAnswer {
   id         String       @id @default(cuid())
   userId     String
-  user       User         @relation(fields: [userId], references: [id])
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   questionId String
-  question   QuizQuestion @relation(fields: [questionId], references: [id])
+  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
   answer     String
   isCorrect  Boolean?
   createdAt  DateTime     @default(now())
+
+  @@unique([userId, questionId])
+  @@index([userId])
+  @@index([questionId])
 }
 
 model Code {
   id          String    @id @default(cuid())
   code        String    @unique
   courseId    String?
-  course      Course?   @relation(fields: [courseId], references: [id])
-  lectureId   String?
-  lecture     Lecture?  @relation(fields: [lectureId], references: [id])
+  course      Course?   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   isUsed      Boolean   @default(false)
   userId      String?
-  usedBy      User?     @relation("UserCodes", fields: [userId], references: [id])
+  usedBy      User?     @relation("UserCodes", fields: [userId], references: [id], onDelete: Cascade)
   purchasedAt DateTime?
   createdAt   DateTime  @default(now())
+
+  @@index([courseId])
+  @@index([userId])
 }
 
 model Coupon {
@@ -218,17 +189,19 @@ model Coupon {
   validFrom     DateTime @default(now())
   validUntil    DateTime
   courseId      String?
-  course        Course?  @relation(fields: [courseId], references: [id])
+  course        Course?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
   createdBy     String
   isActive      Boolean  @default(true)
+
+  @@index([courseId])
 }
 
 model Enrollment {
   id        String    @id @default(cuid())
   userId    String
-  user      User      @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   courseId  String
-  course    Course    @relation(fields: [courseId], references: [id])
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
   createdAt DateTime  @default(now())
   expiresAt DateTime?
 
@@ -240,27 +213,30 @@ model Enrollment {
 model Progress {
   id          String    @id @default(cuid())
   userId      String
-  user        User      @relation(fields: [userId], references: [id])
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   lessonId    String
-  lesson      Lesson    @relation(fields: [lessonId], references: [id])
+  lesson      Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   courseId    String
-  course      Course    @relation(fields: [courseId], references: [id])
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
   completed   Boolean   @default(false)
   completedAt DateTime?
 
   @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([courseId])
 }
 
 model WatchProgress {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   lessonId  String
-  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   seconds   Int      @default(0)
   updatedAt DateTime @updatedAt
 
   @@unique([userId, lessonId])
+  @@index([userId])
 }
 
 model Document {
@@ -268,14 +244,16 @@ model Document {
   url      String
   lessonId String
   lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
 }
 
 model VideoBookmark {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   lessonId  String
-  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   timestamp Int
   note      String?
   createdAt DateTime @default(now())
@@ -286,22 +264,27 @@ model VideoBookmark {
 model Notification {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   message   String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Payment {
   id            String   @id @default(cuid())
   userId        String
-  user          User     @relation(fields: [userId], references: [id])
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   courseId      String
-  course        Course   @relation(fields: [courseId], references: [id])
+  course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   amount        Float
   status        String   @default("PENDING")
   paymobOrderId String?  @unique
   createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([courseId])
 }
 
 model Attachment {
@@ -311,19 +294,23 @@ model Attachment {
   type       String
   size       Int
   lessonId   String?
-  lesson     Lesson?  @relation(fields: [lessonId], references: [id])
+  lesson     Lesson?  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   moduleId   String?
-  module     Module?  @relation(fields: [moduleId], references: [id])
+  module     Module?  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   courseId   String?
-  course     Course?  @relation(fields: [courseId], references: [id])
+  course     Course?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
   uploadedBy String
   createdAt  DateTime @default(now())
+
+  @@index([lessonId])
+  @@index([moduleId])
+  @@index([courseId])
 }
 
 model Certificate {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   courseId    String
   course      Course   @relation(fields: [courseId], references: [id])
   issueDate   DateTime @default(now())
@@ -343,7 +330,7 @@ model QuestionBank {
   tags       String[]
   difficulty Int          @default(1)
   teacherId  String
-  teacher    User         @relation(fields: [teacherId], references: [id])
+  teacher    User         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   courseId   String?
   course     Course?      @relation(fields: [courseId], references: [id])
   createdAt  DateTime     @default(now())
@@ -367,6 +354,8 @@ model Contest {
   createdAt DateTime @default(now())
 
   entries   ContestEntry[]
+  
+  @@index([courseId])
 }
 
 model ContestEntry {
@@ -374,7 +363,7 @@ model ContestEntry {
   contestId   String
   contest     Contest   @relation(fields: [contestId], references: [id])
   userId      String
-  user        User      @relation(fields: [userId], references: [id])
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   score       Int
   answers     Json
   startedAt   DateTime  @default(now())
@@ -382,14 +371,15 @@ model ContestEntry {
   rank        Int?
 
   @@unique([contestId, userId])
+  @@index([userId])
 }
 
 model Referral {
   id          String   @id @default(cuid())
   referrerId  String
-  referrer    User     @relation("Referrer", fields: [referrerId], references: [id])
+  referrer    User     @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
   refereeId   String   @unique
-  referee     User     @relation("Referee", fields: [refereeId], references: [id])
+  referee     User     @relation("Referee", fields: [refereeId], references: [id], onDelete: Cascade)
   rewardGiven Boolean  @default(false)
   createdAt   DateTime @default(now())
 
@@ -399,7 +389,7 @@ model Referral {
 model AuditLog {
   id         String   @id @default(cuid())
   actorId    String?
-  actor      User?    @relation("Actor", fields: [actorId], references: [id])
+  actor      User?    @relation("Actor", fields: [actorId], references: [id], onDelete: SetNull)
   action     String
   entityType String
   entityId   String
