@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getLessonLockStatus } from '@/lib/locking'
 
 export async function POST(req: Request, { params }: { params: { lessonId: string } }) {
   const session = await getServerSession(authOptions)
@@ -31,20 +32,22 @@ export async function POST(req: Request, { params }: { params: { lessonId: strin
     return NextResponse.json({ message: 'لا يوجد امتحان' }, { status: 404 })
   }
 
-  // ✅ IDOR Protection: التأكد من اشتراك الطالب في الكورس إذا لم يكن مجانياً
   const actualCourseId = lesson.module.courseId
+
+  // IDOR Protection
   if (!lesson.module.course.isFree) {
     const enrollment = await prisma.enrollment.findUnique({
-      where: {
-        userId_courseId: {
-          userId: session.user.id,
-          courseId: actualCourseId,
-        },
-      },
+      where: { userId_courseId: { userId: session.user.id, courseId: actualCourseId } },
     })
     if (!enrollment || (enrollment.expiresAt && new Date() > enrollment.expiresAt)) {
       return NextResponse.json({ message: 'غير مصرح بالوصول لهذا الكورس' }, { status: 403 })
     }
+  }
+
+  // فحص قفل الدرس
+  const lockStatus = await getLessonLockStatus(params.lessonId, session.user.id, actualCourseId)
+  if (lockStatus.isLocked) {
+    return NextResponse.json({ message: 'هذا الدرس مقفل. يجب إكمال الدروس السابقة أولاً.' }, { status: 403 })
   }
 
   let correctCount = 0

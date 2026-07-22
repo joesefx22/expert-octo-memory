@@ -1,24 +1,14 @@
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
 
-async function getProgress(courseId: string, userId: string) {
-  const totalLessons = await prisma.lesson.count({
-    where: { module: { courseId } },
-  })
-  const completed = await prisma.progress.count({
-    where: { userId, courseId, completed: true },
-  })
-  return { totalLessons, completed }
-}
-
-export default async function CourseProgressCard({
+export default function CourseProgressCard({
   course,
-  userId,
+  totalLessons,
+  completed,
 }: {
   course: any
-  userId: string
+  totalLessons: number
+  completed: number
 }) {
-  const { totalLessons, completed } = await getProgress(course.id, userId)
   const percent = totalLessons > 0 ? Math.round((completed / totalLessons) * 100) : 0
 
   return (

@@ -2,23 +2,28 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ message: 'يجب تسجيل الدخول' }, { status: 401 })
 
+  // ✅ حماية من التخمين الآلي
+  const rateLimitRes = await checkRateLimit(req, 'code_redemption')
+  if (rateLimitRes) return rateLimitRes
+
   const { code, courseId } = await req.json()
   if (!code || !courseId) return NextResponse.json({ message: 'الكود ومعرف الكورس مطلوبان' }, { status: 400 })
 
   const normalized = code.toUpperCase().trim()
-  const codeRecord = await prisma.code.findUnique({ where: { code: normalized } })
-  if (!codeRecord) return NextResponse.json({ message: 'كود غير صالح' }, { status: 404 })
-  if (codeRecord.isUsed) return NextResponse.json({ message: 'هذا الكود مستخدم بالفعل' }, { status: 400 })
-  if (codeRecord.courseId !== courseId) return NextResponse.json({ message: 'الكود لا يخص هذا الكورس' }, { status: 400 })
 
-  // تحديث الكود
-  await prisma.code.update({
-    where: { id: codeRecord.id },
+  // ✅ تحديث ذري يمنع الـ Race Condition تماماً
+  const updateResult = await prisma.code.updateMany({
+    where: {
+      code: normalized,
+      courseId: courseId,
+      isUsed: false, // لن يتم التحديث إلا لو كان الكود صالحاً وغير مستخدم
+    },
     data: {
       isUsed: true,
       userId: session.user.id,
@@ -26,18 +31,20 @@ export async function POST(req: Request) {
     },
   })
 
-  // إنشاء أو تحديث التسجيل (Enrollment)
+  if (updateResult.count === 0) {
+    return NextResponse.json({ message: 'الكود غير صالح أو مستخدم بالفعل' }, { status: 400 })
+  }
+
+  // الآن نمنح التسجيل
   await prisma.enrollment.upsert({
-    where: { userId_courseId: { userId: session.user.id, courseId: codeRecord.courseId } },
+    where: { userId_courseId: { userId: session.user.id, courseId: courseId } },
     update: { expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
     create: {
       userId: session.user.id,
-      courseId: codeRecord.courseId,
+      courseId: courseId,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
   })
 
-  // إرسال بريد إلكتروني (اختياري، يمكن إضافته لاحقاً)
-
-  return NextResponse.json({ message: 'تم تفعيل الكود بنجاح', courseId: codeRecord.courseId })
+  return NextResponse.json({ message: 'تم تفعيل الكود بنجاح', courseId })
 }

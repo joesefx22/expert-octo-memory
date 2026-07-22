@@ -42,7 +42,6 @@ export async function getLessonLockStatus(
         }
       }
     } else if (config.prerequisiteType === 'QUIZ_PASSED') {
-      // تحقق من اجتياز اختبار الدرس السابق
       const requiredProgress = await prisma.progress.findUnique({
         where: {
           userId_lessonId: {
@@ -67,14 +66,21 @@ export async function getLessonLockStatus(
   if (lesson.module.lockConfig) {
     const config = lesson.module.lockConfig as any
     if (config.prerequisiteType === 'MODULE_COMPLETION') {
-      // تحقق من إكمال جميع دروس الوحدة السابقة
+      // ✅ جلب الوحدة السابقة مع الحقول المطلوبة (بما فيها lockConfig)
       const prevModule = await prisma.module.findFirst({
         where: {
           courseId,
           order: { lt: lesson.module.order },
         },
         orderBy: { order: 'desc' },
-        include: { lessons: { select: { id: true } } },
+        select: {
+          id: true,
+          title: true,
+          lockConfig: true,       // 👈 تمت إضافته لإصلاح الخطأ
+          lessons: {
+            select: { id: true }
+          }
+        }
       })
 
       if (prevModule) {

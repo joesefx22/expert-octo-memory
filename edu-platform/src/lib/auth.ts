@@ -32,13 +32,12 @@ export const authOptions: AuthOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        // ✅ حماية من القوة الغاشمة: فحص المعدل الأقصى للمحاولات
         const requestHeaders = new Headers()
         const clientIp = headers().get('x-forwarded-for') || '127.0.0.1'
         requestHeaders.set('x-forwarded-for', clientIp)
         const mockReq = new Request('http://localhost', { headers: requestHeaders })
 
-        const rateLimitRes = await checkRateLimit(mockReq, 10) // أقصى 10 محاولات
+        const rateLimitRes = await checkRateLimit(mockReq, 'login')
         if (rateLimitRes) {
           throw new Error('تم تجاوز الحد المسموح. حاول لاحقاً.')
         }

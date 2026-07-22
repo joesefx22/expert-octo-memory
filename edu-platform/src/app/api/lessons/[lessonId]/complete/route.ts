@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getLessonLockStatus } from '@/lib/locking'
 
 export async function POST(req: Request, { params }: { params: { lessonId: string } }) {
   const session = await getServerSession(authOptions)
@@ -9,7 +10,6 @@ export async function POST(req: Request, { params }: { params: { lessonId: strin
     return NextResponse.json({ message: 'غير مصرح' }, { status: 403 })
   }
 
-  // جلب courseId من قاعدة البيانات بدلاً من الوثوق بالعميل
   const lesson = await prisma.lesson.findUnique({
     where: { id: params.lessonId },
     include: { module: { include: { course: true } } }
@@ -21,15 +21,20 @@ export async function POST(req: Request, { params }: { params: { lessonId: strin
 
   const course = lesson.module.course
 
-  // ✅ حماية IDOR: التحقق من الاشتراك إذا كان الكورس مدفوعاً
+  // التحقق من الاشتراك
   if (!course.isFree) {
     const enrollment = await prisma.enrollment.findUnique({
       where: { userId_courseId: { userId: session.user.id, courseId: course.id } },
     })
-
     if (!enrollment || (enrollment.expiresAt && new Date() > enrollment.expiresAt)) {
       return NextResponse.json({ message: 'غير مصرح بالوصول لهذا الكورس' }, { status: 403 })
     }
+  }
+
+  // فحص قفل الدرس
+  const lockStatus = await getLessonLockStatus(params.lessonId, session.user.id, course.id)
+  if (lockStatus.isLocked) {
+    return NextResponse.json({ message: 'هذا الدرس مقفل. يجب إكمال الدروس السابقة أولاً.' }, { status: 403 })
   }
 
   await prisma.progress.upsert({

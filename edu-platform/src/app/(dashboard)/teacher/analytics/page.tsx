@@ -1,30 +1,42 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
+import { prisma } from '@/lib/prisma'
 import AnalyticsCharts from '@/components/teacher/AnalyticsCharts'
 
 export default async function TeacherAnalyticsPage() {
   const session = await getServerSession(authOptions)
   if (!session || session.user.role === 'STUDENT') redirect('/')
 
-  const cookieStore = cookies()
-  const cookieString = cookieStore.toString()
+  // ✅ استعلام مباشر من قاعدة البيانات بدلاً من fetch الداخلي
+  const [totalCourses, totalStudents, totalLessons, enrollmentsPerCourse] = await Promise.all([
+    prisma.course.count({ where: { teacherId: session.user.id } }),
+    prisma.user.count({ where: { role: 'STUDENT' } }),
+    prisma.lesson.count({ where: { module: { course: { teacherId: session.user.id } } } }),
+    prisma.enrollment.groupBy({
+      by: ['courseId'],
+      where: { course: { teacherId: session.user.id } },
+      _count: { userId: true },
+    }),
+  ])
 
-  const res = await fetch(`${process.env.NEXTAUTH_URL}/api/analytics/teacher`, {
-    headers: { Cookie: cookieString },
-  })
-  const data = await res.json()
+  // تحضير البيانات لرسومات التحليلات
+  const chartData = {
+    totalCourses,
+    totalStudents,
+    totalLessons,
+    enrollmentsPerCourse,
+  }
 
   return (
     <div className="space-y-6" dir="rtl">
       <h1 className="text-3xl font-bold">لوحة التحليلات</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="الكورسات" value={data.totalCourses} color="blue" />
-        <StatCard title="الطلاب" value={data.totalStudents} color="amber" />
-        <StatCard title="الدروس" value={data.totalLessons} color="emerald" />
+        <StatCard title="الكورسات" value={totalCourses} color="blue" />
+        <StatCard title="الطلاب" value={totalStudents} color="amber" />
+        <StatCard title="الدروس" value={totalLessons} color="emerald" />
       </div>
-      <AnalyticsCharts data={data} />
+      <AnalyticsCharts data={chartData} />
     </div>
   )
 }

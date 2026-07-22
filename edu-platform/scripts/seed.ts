@@ -21,15 +21,8 @@ async function main() {
   await prisma.payment.deleteMany()
   await prisma.notification.deleteMany()
   await prisma.auditLog.deleteMany()
-
-  // النماذج القديمة (التي يعتمد عليها الكود الحالي)
-  await prisma.submission.deleteMany()
-  await prisma.question.deleteMany()
-  await prisma.assignment.deleteMany()
   await prisma.code.deleteMany()
-  await prisma.lecture.deleteMany()
-
-  // النماذج الجديدة
+  await prisma.question.deleteMany()
   await prisma.enrollment.deleteMany()
   await prisma.lesson.deleteMany()
   await prisma.module.deleteMany()
@@ -55,56 +48,7 @@ async function main() {
     data: { name: 'طالب محمد', email: 'student@edu.com', password: studentPass, role: 'STUDENT' },
   })
 
-  // ========== إنشاء بيانات قديمة (Lecture, Assignment, Submission, Question) ==========
-  const lecture = await prisma.lecture.create({
-    data: {
-      title: 'مقدمة في البرمجة',
-      description: 'تعلم أساسيات البرمجة بلغة TypeScript',
-      videoId: '7f9e3b2c-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
-      duration: 3600,
-      isFree: true,
-      teacherId: teacher.id,
-    },
-  })
-
-  const assignment = await prisma.assignment.create({
-    data: {
-      lectureId: lecture.id,
-      title: 'تطبيق عملي',
-      questions: [
-        { question: 'ما هو TypeScript؟', options: ['لغة', 'مكتبة', 'إطار عمل'], correctIndex: 0 },
-      ],
-    },
-  })
-
-  // إنشاء كود للمحاضرة القديمة (يدعم lectureId)
-  await prisma.code.create({
-    data: {
-      code: 'OLD12345',
-      lectureId: lecture.id,
-      isUsed: false,
-    },
-  })
-
-  // واجب قديم
-  await prisma.submission.create({
-    data: {
-      assignmentId: assignment.id,
-      studentId: student.id,
-      answers: { 0: 0 },
-    },
-  })
-
-  // سؤال طالب
-  await prisma.question.create({
-    data: {
-      content: 'كيف يمكن تحسين الأداء؟',
-      studentId: student.id,
-      lectureId: lecture.id,
-    },
-  })
-
-  // ========== إنشاء بيانات جديدة (Course, Module, Lesson, Quiz, Enrollment, Progress) ==========
+  // ========== إنشاء كورس جديد (Course → Module → Lesson → Quiz) ==========
   const course = await prisma.course.create({
     data: {
       title: 'React.js من الصفر',
@@ -153,7 +97,7 @@ async function main() {
     },
   })
 
-  // كود شراء للكورس الجديد
+  // كود شراء للكورس (الحقل courseId فقط)
   await prisma.code.create({
     data: {
       code: 'REACT123',
@@ -185,7 +129,7 @@ async function main() {
     },
   })
 
-  console.log('✅ تم إنشاء بيانات البذرة بنجاح (القديمة والجديدة)')
+  console.log('✅ تم إنشاء بيانات البذرة بنجاح')
 }
 
 main()

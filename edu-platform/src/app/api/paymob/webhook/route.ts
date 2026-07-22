@@ -11,13 +11,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Missing signature or secret' }, { status: 400 })
   }
 
-  const calculatedHmac = crypto.createHmac('sha256', secret).update(body).digest('hex')
-  const calculatedBuffer = Buffer.from(calculatedHmac)
-  const receivedBuffer = Buffer.from(receivedHmac)
-  if (receivedBuffer.length !== calculatedBuffer.length || !crypto.timingSafeEqual(calculatedBuffer, receivedBuffer)) {
-    return NextResponse.json({ message: 'Invalid signature' }, { status: 403 })
-  }
-
   let parsedBody: any
   try {
     parsedBody = JSON.parse(body)
@@ -28,6 +21,39 @@ export async function POST(req: Request) {
   const { obj } = parsedBody
   if (!obj || !obj.order) {
     return NextResponse.json({ message: 'Invalid payload' }, { status: 400 })
+  }
+
+  // ✅ Paymob HMAC: تجميع الحقول المطلوبة بالترتيب الأبجدي
+  const hmacString = [
+    obj.amount_cents,
+    obj.created_at,
+    obj.currency,
+    obj.error_occured,
+    obj.has_parent_transaction,
+    obj.id,
+    obj.integration_id,
+    obj.is_3d_secure,
+    obj.is_auth,
+    obj.is_capture,
+    obj.is_refunded,
+    obj.is_standalone_payment,
+    obj.is_voided,
+    obj.order?.id,
+    obj.owner,
+    obj.pending,
+    obj.source_data?.pan,
+    obj.source_data?.sub_type,
+    obj.source_data?.type,
+    obj.success,
+  ].join('')
+
+  const calculatedHmac = crypto.createHmac('sha256', secret).update(hmacString).digest('hex')
+
+  // مقارنة آمنة لمنع هجمات التوقيت
+  const calculatedBuffer = Buffer.from(calculatedHmac)
+  const receivedBuffer = Buffer.from(receivedHmac)
+  if (receivedBuffer.length !== calculatedBuffer.length || !crypto.timingSafeEqual(calculatedBuffer, receivedBuffer)) {
+    return NextResponse.json({ message: 'Invalid signature' }, { status: 403 })
   }
 
   if (obj.success === true) {
@@ -50,7 +76,6 @@ export async function POST(req: Request) {
         },
       })
 
-      // إشعار داخلي
       await prisma.notification.create({
         data: {
           userId: payment.userId,

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 
-// graceful fallback لو متغيرات البيئة مش موجودة
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
   ? new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL,
@@ -16,11 +15,12 @@ const ratelimit = redis ? new Ratelimit({
   analytics: true,
 }) : null
 
-export async function checkRateLimit(req: Request, limit = 5) {
+export async function checkRateLimit(req: Request, actionNamespace: string) {
   if (!ratelimit) return null
 
   const ip = req.headers.get('x-forwarded-for') || '127.0.0.1'
-  const { success } = await ratelimit.limit(ip)
+  const identifier = `${ip}_${actionNamespace}`
+  const { success } = await ratelimit.limit(identifier)
 
   if (!success) {
     return NextResponse.json(

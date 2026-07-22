@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Modal from './ui/Modal'
-import Button from './ui/Button'
-import Input from './ui/Input'
-import Label from './ui/Label'
+import Modal from '@/components/ui/Modal'
+import Button from '@/components/ui/Button'
+import Input from '@/components/ui/Input'
+import Label from '@/components/ui/Label'
 
 export default function GenerateCodesModal({ courseId, courseTitle }: { courseId: string; courseTitle: string }) {
   const [open, setOpen] = useState(false)

@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(req: Request) {
+  // ✅ حماية من التخمين الآلي للكوبونات
+  const rateLimitRes = await checkRateLimit(req, 'coupon_validation')
+  if (rateLimitRes) return rateLimitRes
+
   const { code, courseId, amount } = await req.json()
 
   const coupon = await prisma.coupon.findUnique({ where: { code: code.toUpperCase() } })
